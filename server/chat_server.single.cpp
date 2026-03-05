@@ -56,7 +56,7 @@ int main () {
         return 0;
     }
 
-    std::cout << "user[" << nickname << "] join in the dialogue" << std::endl;
+    std::cout << "user[" << nickname << "] join in the chatroom" << std::endl;
 
     std::string msg;
 

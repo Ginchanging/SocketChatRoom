@@ -1,12 +1,68 @@
 #include <iostream>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>   // htons, htonl
-#include <netinet/in.h>  // sockaddr_in
-#include <unistd.h>      // close
-#include <cstring>       // memset
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <cstring>
+#include <atomic>
+#include <thread>
+#include <errno.h>
 
-ssize_t readline_client(std::string & out);
+std::atomic<bool> g_running{true};
+
+ssize_t read_line(int fd, std::string & out) {
+    out.clear();
+    char ch;
+
+    while (true) {
+        ssize_t n = ::read(fd, &ch, 1); 
+
+        if (n == 1) {
+            if (ch == '\n') return (ssize_t)out.size();
+            out.push_back(ch);
+            continue;
+        }
+
+        if (n == 0) { 
+            if (!out.empty()) return (ssize_t)out.size();
+            return 0;
+        }
+
+        if (errno == EINTR) continue;
+        return -1; 
+    }
+} 
+
+void sender_thread_func(int sockfd) {
+    std::string line;
+    while(g_running) {
+        if(!std::getline(std::cin, line)) {
+            break;
+        }
+        if(line == "/quit") {
+            g_running = false;
+            shutdown(sockfd, SHUT_RDWR);
+            break;
+        }
+
+        line.push_back('\n');
+        write(sockfd, line.c_str(), line.size());
+
+    }
+}
+
+void receiver_thread_func(int sockfd) {
+    std::string line;
+    while (g_running) {
+        ssize_t n = read_line(sockfd, line);
+        if(n <= 0) {
+            g_running = false;
+            break;
+        }
+        std::cout << line << std::endl;
+    }
+}
 
 int main () {
 
@@ -42,27 +98,14 @@ int main () {
     std::getline(std::cin, line);
     line += "\n";
     write(sockfd, line.c_str(), line.size());
-    std::string buf;
-    ssize_t n = 0;
-    while(true) {
-        n = readline_client(buf);
-        write(sockfd, buf.c_str(), buf.size());
-        if(n == 1) break; 
-    }
-    std::cout << std::endl << "Leaving the chatRoom..." << std::endl;
-    close(sockfd);
-    return 0;
-}
+    
+    std::thread sender(sender_thread_func, sockfd);
+    std::thread receiver(receiver_thread_func, sockfd);
 
-ssize_t readline_client(std::string & out) {
-    out.clear();
-    char buf;
-    ssize_t a = 0;
-    while(true) {
-        std::cin.read(&buf, 1);
-        out.push_back(buf);
-        ++a;
-        if(buf == '\n' ) return a;
-    }
-    return a;
+    sender.join();
+    receiver.join();
+    close(sockfd);
+    std::cout << std::endl << "Leaving the chatRoom..." << std::endl;
+    
+    return 0;
 }
