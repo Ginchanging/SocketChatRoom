@@ -211,8 +211,12 @@ static void receiver_thread_func(net::socket_t sockfd) {
 }
 
 int main(int argc, char** argv) {
+  #ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+  #endif
   // 用法：chat_client_two <ip> <port>
-  const char* ip = "127.0.0.1";
+  const char* ip = "8.138.138.222";
   uint16_t port = 5000;
 
   if (argc >= 2) ip = argv[1];

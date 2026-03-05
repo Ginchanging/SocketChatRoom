@@ -87,7 +87,9 @@ ssize_t readline(int fd, std::string & out) {
 
 void broadcast_message(const std::string& from, const std::string& msg, int exclude_fd) {
     std::string line = "[" + from + "] " + msg + "\n";
-
+    if(from != "System") {
+        std::cout << line;
+    }
     std::lock_guard<std::mutex> lock(g_clients_mutex);
     for (int fd : g_clients) {
         if (fd == exclude_fd) continue;
@@ -96,7 +98,7 @@ void broadcast_message(const std::string& from, const std::string& msg, int excl
 }
 
 void handle_client(int client_fd) {
-    std::string welcome = "Welcome to the chatRoom! \ndeveloped by Gin.\n";
+    std::string welcome = "Welcome to the chatRoom! \nYou can log out by using \"/quit\"\n\ndeveloped by Gin.\n\n";
     write(client_fd, welcome.c_str(), welcome.size());
     std::string nickname;
     if (readline(client_fd, nickname) <= 0) {
